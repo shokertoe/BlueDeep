@@ -3,6 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using BlueDeep.Core.DataModels;
+using BlueDeep.Core.Enums;
 using BlueDeep.Core.Models;
 
 namespace BlueDeep.Server
@@ -12,22 +14,30 @@ namespace BlueDeep.Server
         // Хранит подписчиков для каждого топика
         private static readonly ConcurrentDictionary<string, ConcurrentBag<TcpClient>> TopicSubscribers = new();
         private static readonly MessageBroker MessageBroker = new();
-        
-        static async Task Main(string[] args)
+
+        private static Task Main()
         {
+            //TODO выбирать порт из конфигурации
             var listener = new TcpListener(IPAddress.Any, 9090);
             listener.Start();
-            Console.WriteLine("Server started on tcp://localhost:9090/");
+            Console.WriteLine("Сервер запущен по адрес tcp://localhost:9090/");
 
             // Запуск обработки сообщений в отдельном потоке
             _ = Task.Run(async () =>await ProcessMessagesAsync());
-            Console.WriteLine("ProcessMessagesAsync started");
-
-            while (true)
+            Console.WriteLine("Поток обработки входящих сообщений запущен");
+            Task.Run(async () =>
             {
-                var client = await listener.AcceptTcpClientAsync();
-                _ = HandleClientAsync(client); // Обработка клиента в отдельном потоке
-            }
+                while (true)
+                {
+                    var client = await listener.AcceptTcpClientAsync();
+                    _ = HandleClientAsync(client); // Обработка клиента в отдельном потоке
+                }
+            });
+            
+            Console.WriteLine("Press Enter to exit");
+            Console.ReadLine();
+
+            return Task.CompletedTask;
         }
 
         private static async Task HandleClientAsync(TcpClient client)
@@ -47,28 +57,42 @@ namespace BlueDeep.Server
                     await stream.ReadExactlyAsync(messageBuffer, 0, messageLength);
                     var message = Encoding.UTF8.GetString(messageBuffer);
 
-                    var messageObj = JsonSerializer.Deserialize<ClientMessage>(message);
+                    var messageObj = JsonSerializer.Deserialize<BaseClientMessage>(message);
 
-                    switch (messageObj?.Type)
+                    switch (messageObj?.MessageType)
                     {
-                        case "subscribe":
+                        case ClientMessageType.Subscribe:
                         {
-                            // Добавление клиента в подписчики топика
-                            if (!TopicSubscribers.ContainsKey(messageObj.Topic))
+                            var subscribeData = JsonSerializer.Deserialize<MessageSubscribeModel>(messageObj.MessageData);
+                            if (subscribeData is null)
                             {
-                                TopicSubscribers[messageObj.Topic] = [];
+                                Console.WriteLine("Модель данных Subscribe не может быть получена");
+                                break;
                             }
-                            TopicSubscribers[messageObj.Topic].Add(client);
-                            Console.WriteLine($"Client subscribed to {messageObj.Topic}");
+                            
+                            // Добавление клиента в подписчики топика
+                            var topicName = subscribeData.TopicName;
+                            if (!TopicSubscribers.ContainsKey(topicName))
+                            {
+                                TopicSubscribers[topicName] = [];
+                            }
+                            TopicSubscribers[topicName].Add(client);
+                            Console.WriteLine($"Client subscribed to {topicName}");
                             break;
                         }
-                        case "publish":
+                        case ClientMessageType.Publish:
+                            var publishData = JsonSerializer.Deserialize<MessagePublishModel>(messageObj.MessageData);
+                            if (publishData is null)
+                            {
+                                Console.WriteLine("Модель данных Publish не может быть получена");
+                                break;
+                            }
                             // Добавление сообщения в очередь
-                            MessageBroker.Enqueue(messageObj);
-                            Console.WriteLine($"Message with id={messageObj.Id} published to topic={messageObj.Topic}");
+                            MessageBroker.Enqueue(publishData);
+                            Console.WriteLine($"Message was published to topic={publishData.TopicName}");
                             break;
                         default:
-                            Console.WriteLine($"Unknown type {messageObj?.Type} with id={messageObj?.Id} was recieved.");
+                            Console.WriteLine($"Unknown type {messageObj?.MessageType}  was received.");
                             break;
                     }
                 }
@@ -105,18 +129,25 @@ namespace BlueDeep.Server
             {
                 try
                 {
+                    //проходим по всем топикам, у кого есть подписчики
                     foreach (var topic in TopicSubscribers.Where(x => !x.Value.IsEmpty).Select(x => x.Key))
                     {
+                        //Получаем сообщение из брокера сообщений
                         var messageObject = MessageBroker.GetMessage(topic);
+                        //Если нет сообщений в топике, то ничего не делаем
                         if (messageObject is null) continue;
-                        var message = messageObject.Value.message;
-                        var messageId = messageObject.Value.id;
-                        var count = 0;
+                        
+                        
+                        var message = messageObject.Data;
+                        var messageId = messageObject.Id;
+                        
+                        var count = 0; //счетчик, который показывает, сколько раз сообщение было успешно доставлено
                         if (TopicSubscribers.TryGetValue(topic, out var subscribers))
                         {
                             var data = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new ServerMessage(topic, message, messageId)));
                             var length = BitConverter.GetBytes(data.Length);
-
+                            
+                            //Отправляем сообщение каждому подписчику топика
                             foreach (var subscriber in subscribers)
                             {
                                 if (subscriber.Connected)
@@ -132,14 +163,16 @@ namespace BlueDeep.Server
                                 }
                             }
                         }
-
+                        
+                        //если хотя бы кому-то было доставлено, то норм и убираем сообщение из очереди брокера
                         if (count != 0) 
                             MessageBroker.DequeueMessage(topic, messageId);
                     }
                 }
-                catch
+                catch (Exception)
                 {
-                    // ignored
+                    Console.WriteLine("Неизвестная ошибка в потоке доставки сообщений");
+                    throw;
                 }
             }
         }

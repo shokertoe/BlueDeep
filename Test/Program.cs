@@ -1,7 +1,4 @@
-﻿using System;
-using System.Net.Mime;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using BlueDeep.Client;
 
 namespace BlueDeepExample
@@ -14,12 +11,13 @@ namespace BlueDeepExample
             services.AddSingleton<BlueDeepClient>(provider => new BlueDeepClient("localhost", 9090));
             var serviceProvider = services.BuildServiceProvider();
 
-            var client = serviceProvider.GetService<BlueDeepClient>();
-            await client!.ConnectAsync();
-
+            var client = serviceProvider.GetService<BlueDeepClient>() ?? throw new ArgumentNullException(nameof(BlueDeepClient));
+            
             await client.SubscribeAsync<TestMessage>("testTopic1", async (i) =>
             {
                 Console.WriteLine($"Recieve topic1 {i.Date} {i.Message}.Start processing.");
+                await Task.Delay(5000);
+                Console.WriteLine($"Recieve topic1 {i.Date} {i.Message}.End processing.");
             });
        
 
@@ -28,7 +26,7 @@ namespace BlueDeepExample
                 var i = 0;
                 while (true)
                 {
-                    await client.PushAsync("testTopic1", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
+                    await client.PublishAsync("testTopic1", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
                     Task.Delay(5000).Wait();
                 }
             });
