@@ -8,7 +8,7 @@ namespace BlueDeep.Client
     public partial class BlueDeepClient : IDisposable
     {
         // Потокобезопасный словарь для хранения обработчиков подписок
-        private readonly ConcurrentDictionary<string, Action<string>> _subscriptionHandlers = new();
+        private readonly ConcurrentDictionary<string, Func<string, Task>> _subscriptionHandlers = new();
 
         public BlueDeepClient(string serverAddress, int serverPort)
         {
@@ -25,10 +25,10 @@ namespace BlueDeep.Client
         /// <param name="message">Сообщение типа Т</param>
         /// <param name="priority">Приоритет (по умолчанию низкий)</param>
         /// <typeparam name="T">Тип передаваемого сообщения</typeparam>
-        public async Task PublishAsync<T>(string topicName, T message, MessagePriority priority = MessagePriority.Low) 
+        public async Task PublishAsync<T>(string topicName, T message, MessagePriority priority = MessagePriority.Low)
             where T : class
         {
-            var publishMessage = new  PublishMessage<T>(topicName, priority, message);
+            var publishMessage = new PublishMessage<T>(topicName, priority, message);
             await SendMessageAsync(publishMessage);
         }
 
@@ -39,7 +39,7 @@ namespace BlueDeep.Client
         /// <param name="handler">Выполняемое действие</param>
         /// <typeparam name="T">Тип сообщения</typeparam>
         /// <exception cref="Exception">Ошибка создания подписки на топик</exception>
-        public async Task SubscribeAsync<T>(string topic, Action<T> handler) where T : class
+        public async Task SubscribeAsync<T>(string topic, Func<T, Task> handler) where T : class
         {
             if (_subscriptionHandlers.TryGetValue(topic, out _))
             {
@@ -47,16 +47,16 @@ namespace BlueDeep.Client
             }
 
             // Регистрация обработчика для обработки сообщения топика
-            _subscriptionHandlers[topic] = (message) =>
+            _subscriptionHandlers[topic] = async Task (message) =>
             {
                 var receivedMessage = JsonSerializer.Deserialize<T>(message) ??
                                       throw new Exception("Received message was null");
-                handler(receivedMessage);
+                await handler(receivedMessage);
             };
 
             await SendMessageAsync(new SubscribeMessage(topic));
         }
-        
+
         public void Dispose()
         {
             _tcpClient.Dispose();

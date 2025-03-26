@@ -47,19 +47,24 @@ namespace BlueDeep.Client
                                      throw new NullReferenceException("Received message from BlueDeepServer is null");
 
                     // Вызов обработчика, если он зарегистрирован для обработки топика
-                    if (_subscriptionHandlers.TryGetValue(messageObj.Topic, out var handler))
+                    //Запуск отдельной таски без ожидания
+                    if (_subscriptionHandlers.TryGetValue(messageObj.Topic, out var storedFunc))
                     {
-                        try
+                        Task.Run(async () =>
                         {
-                            handler(messageObj.Data);
-                            await SendMessageAsync(new AckMessage(messageObj.Id, MessageStatus.Ok));
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error proceeding message: {ex.Message}");
-                            await SendMessageAsync(new AckMessage(messageObj.Id, MessageStatus.Failed));
-                            throw;
-                        }
+                            try
+                            {
+                                await storedFunc(messageObj.Data);
+                                await SendMessageAsync(new AckMessage(messageObj.Id, MessageStatus.Ok));
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Ошибка обработки сообщения обработчиком: {ex.Message}");
+                                await SendMessageAsync(new AckMessage(messageObj.Id, MessageStatus.Failed));
+                                throw;
+                            }
+                        });
+
                     }
                 }
                 catch (Exception ex)
