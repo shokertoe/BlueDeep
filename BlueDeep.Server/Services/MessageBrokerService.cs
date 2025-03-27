@@ -1,17 +1,23 @@
 using System.Collections.Concurrent;
 using BlueDeep.Core.DataModels;
 using BlueDeep.Server.Models;
+using Microsoft.Extensions.Logging;
 
-namespace BlueDeep.Server;
+namespace BlueDeep.Server.Services;
 
-public class MessageBroker
+public class MessageBrokerService
 {
+    private readonly ILogger<MessageBrokerService> _logger;
+    public MessageBrokerService(ILogger<MessageBrokerService> logger)
+    {
+        _logger = logger;
+    }
     private readonly object _queueLock = new();
     
     // Очередь сообщений с приоритетами
     private readonly ConcurrentDictionary<string, List<MessageBrokerModel>> _topics  = new ();
     
-    public void Enqueue(MessagePublishModel messageObj)
+    public void EnqueueMessage(MessagePublishModel messageObj)
     {
         var topicName = messageObj.TopicName;
         var priority = messageObj.Priority;
@@ -24,8 +30,7 @@ public class MessageBroker
                 _topics.TryAdd(topicName, []);
         
             _topics[topicName].Add( new MessageBrokerModel(data, priority));
-            Console.WriteLine($"Message broker added to topic {topicName}");
-            ShowStat();        
+            _logger.LogDebug("Enqueued message. Data: {@Data}", messageObj);
         }
     }
     
@@ -64,19 +69,7 @@ public class MessageBroker
             var message = messagesBag.FirstOrDefault(x => x.Id == messageId) ?? throw new KeyNotFoundException("DequeueFailed messageId not found");
             messagesBag.Remove(message);
             
-            Console.WriteLine($"Message broker message {messageId} dequeued from topic {topic}");
-            ShowStat();
+            _logger.LogDebug("Dequeued message {$Message}", message);
         }
-    }
-
-    //TODO потом убрать (пока что для отладочных целей)
-    private void ShowStat()
-    {
-        Console.WriteLine("==================");
-        foreach (var topic in _topics.Keys)
-        {
-            Console.WriteLine($"{topic}: {_topics[topic].Count}");
-        }
-        Console.WriteLine("==================");
     }
 }

@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using BlueDeep.Client;
+﻿using BlueDeep.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BlueDeepExample
 {
@@ -13,12 +13,8 @@ namespace BlueDeepExample
 
             var client = serviceProvider.GetService<BlueDeepClient>() ?? throw new ArgumentNullException(nameof(BlueDeepClient));
             
-            await client.SubscribeAsync<TestMessage>("testTopic1", async (i) =>
-            {
-                Console.WriteLine($"Recieve topic1 {i.Date} {i.Message}.Start processing.");
-                await Task.Delay(5000);
-                Console.WriteLine($"Recieve topic1 {i.Date} {i.Message}.End processing.");
-            });
+            //Subscribe on Topic "testTopic1"
+            await client.SubscribeAsync<TestMessage>("testTopic1", TestFuncAsync);
        
 
             _=Task.Run(async () =>
@@ -27,37 +23,24 @@ namespace BlueDeepExample
                 while (true)
                 {
                     await client.PublishAsync("testTopic1", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
-                    Task.Delay(5000).Wait();
+                    Task.Delay(1000).Wait();
                 }
             });
-            //
-            // _=Task.Run(async () =>
+
+            Console.ReadLine();
+            // while (true)
             // {
-            //     var i = 0;
-            //     while (true)
-            //     {
-            //         await client.PushAsync("testTopic1", new TestMessage(DateTime.UtcNow, i--.ToString()), 0);
-            //         Task.Delay((int)Random.Shared.NextInt64(100)).Wait();
-            //     }
-            // });
- 
-            // _=Task.Run(async () =>
-            // {
-            //     var i = 0;
-            //     while (true)
-            //     {
-            //         //Console.WriteLine($"Push topic 2 {i}");
-            //         await client.PushAsync("testTopic2", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
-            //         Task.Delay((int)Random.Shared.NextInt64(10)).Wait();
-            //     }
-            // });
-            
-            while (true)
-            {
-                Task.Delay((int)Random.Shared.NextInt64(100)).Wait();
-            }
+            //     Task.Delay((int)Random.Shared.NextInt64(100)).Wait();
+            // }
+        }
+        
+        private static Task TestFuncAsync(TestMessage i)
+        {
+            Console.WriteLine($"Start processing 'topic1' dt={i.Date}\tval={i.Message}");
+            Task.Delay(5000).Wait();
+            Console.WriteLine($"End processing 'topic1' dt={i.Date}\tval={i.Message}");
+            return Task.CompletedTask;
         }
     }
-    
     public record TestMessage(DateTime Date, string Message);
 }
