@@ -1,4 +1,5 @@
 ﻿using BlueDeep.Client;
+using BlueDeep.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlueDeepExample
@@ -23,7 +24,17 @@ namespace BlueDeepExample
                 while (true)
                 {
                     await client.PublishAsync("testTopic1", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
-                    Task.Delay(1000).Wait();
+                    Task.Delay(100).Wait();
+                }
+            });
+            
+            _=Task.Run(async () =>
+            {
+                var i = 50000;
+                while (true)
+                {
+                    await client.PublishAsync("testTopic2", new TestMessage(DateTime.UtcNow, i++.ToString()),priority: MessagePriority.High);
+                    Task.Delay(10).Wait();
                 }
             });
 

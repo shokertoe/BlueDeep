@@ -6,12 +6,12 @@ namespace BlueDeep.Server.Services;
 
 public class TopicService
 {
-    private readonly ConcurrentDictionary<string, ConcurrentBag<TcpClient>?> _topicSubscribers;
+    private static ConcurrentDictionary<string, ConcurrentBag<TcpClient>?>? _topicSubscribers;
     private readonly ILogger<TopicService> _logger;
     public TopicService(ILogger<TopicService> logger)
     {
         _logger = logger;
-        _topicSubscribers = new ConcurrentDictionary<string, ConcurrentBag<TcpClient>?>();
+        _topicSubscribers ??= new ConcurrentDictionary<string, ConcurrentBag<TcpClient>?>();
     }
     
     public void RemoveClientFromAllTopics(TcpClient client)

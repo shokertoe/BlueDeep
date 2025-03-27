@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace BlueDeep.Server.Processors;
 
+/// <summary>
+///  Processor of SubscribeType incoming message 
+/// </summary>
 public class SubscribeMessageProcessor
 {
     private readonly TopicService _topicService;
@@ -18,6 +21,11 @@ public class SubscribeMessageProcessor
         _logger = logger;
     }
 
+    /// <summary>
+    /// Process Subscribe message
+    /// </summary>
+    /// <param name="subscribeData">Subscribe model</param>
+    /// <param name="client">Tcp client</param>
     public void ProcessMessage(MessageSubscribeModel subscribeData, TcpClient client)
     {
         _topicService.AddSubscriber(subscribeData.TopicName, client);

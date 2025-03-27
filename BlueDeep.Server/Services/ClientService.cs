@@ -9,6 +9,9 @@ using Microsoft.Extensions.Logging;
 
 namespace BlueDeep.Server.Services;
 
+/// <summary>
+/// Client Interaction service
+/// </summary>
 public class ClientService
 {
     private readonly ILogger<ClientService> _logger;
@@ -29,8 +32,11 @@ public class ClientService
         _publishMessageProcessor = publishMessageProcessor;
     }
     
-    //Client worker
-    public async Task StartRecieveDataAsync(TcpClient client)
+    /// <summary>
+    /// Receive client data worker
+    /// </summary>
+    /// <param name="client">Tcp client</param>
+    public async Task StartReceiveDataAsync(TcpClient client)
     {
         var stream = client.GetStream();
         var buffer = new byte[4]; // Message buffer
@@ -38,19 +44,18 @@ public class ClientService
         {
             while (client.Connected)
             {
-                // Read message from stream to buffer
+                // Reading message from stream to buffer
                 var bytesRead = client.Client.Receive(buffer);
                 if (bytesRead == 0) //client disconnect recognition
                 {
                     break;
                 }
                 
-                // Чтение длины сообщения
                 var messageLength = BitConverter.ToInt32(buffer, 0);
-                // Чтение самого сообщения
                 var messageBuffer = new byte[messageLength];
                 await stream.ReadExactlyAsync(messageBuffer, 0, messageLength);
                 
+                //Deserialize message to BaseClientMessage model
                 var message = Encoding.UTF8.GetString(messageBuffer);
                 var messageObj = JsonSerializer.Deserialize<BaseClientMessage>(message);
                 ParseClientMessage(messageObj, client);
@@ -58,18 +63,22 @@ public class ClientService
         }
         catch (Exception ex)
         {
-            _logger.LogError("Client worker failure. Client {Client}, exception {Exception}", client.Client.RemoteEndPoint, ex);
+            _logger.LogError("Client data worker failure. Client {Client}, exception {Exception}", client.Client.RemoteEndPoint, ex);
         }
         finally
         {
-            // remove client on disconnect of failure
+            //remove client on disconnect or failure
             await client.Client.DisconnectAsync(true);
             _topicService.RemoveClientFromAllTopics(client);
             _logger.LogInformation("Client disconnected {Client}", client.Client.RemoteEndPoint);
         }
     }
     
-    //Parse client messages by types
+    /// <summary>
+    /// Parse client messages by types
+    /// </summary>
+    /// <param name="messageObj">BaseClientMessage model</param>
+    /// <param name="client">Tcp client</param>
     private void ParseClientMessage(BaseClientMessage? messageObj, TcpClient client)
     {
         switch (messageObj?.MessageType)

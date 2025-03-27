@@ -46,7 +46,7 @@ namespace BlueDeep.Client
                 throw new Exception("Subscription on topic already exists");
             }
 
-            // Регистрация обработчика для обработки сообщения топика
+            // Register topic handler
             _subscriptionHandlers[topic] = async Task (message) =>
             {
                 var receivedMessage = JsonSerializer.Deserialize<T>(message) ??

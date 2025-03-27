@@ -14,7 +14,7 @@ public class ServerService : BackgroundService
     private readonly ServerConfig _serverConfig;
     private readonly ClientService _clientService;
     private readonly MessageSenderService _messageSenderService;
-    
+
     public ServerService(ILogger<ServerService> logger,
         IOptions<ServerConfig> serverConfig,
         IServiceScopeFactory serviceScopeFactory)
@@ -23,7 +23,7 @@ public class ServerService : BackgroundService
         _serverConfig = serverConfig.Value;
         using var scope = serviceScopeFactory.CreateScope();
         _clientService = scope.ServiceProvider.GetRequiredService<ClientService>();
-        _messageSenderService =  scope.ServiceProvider.GetRequiredService<MessageSenderService>();
+        _messageSenderService = scope.ServiceProvider.GetRequiredService<MessageSenderService>();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -31,7 +31,7 @@ public class ServerService : BackgroundService
         var listener = new TcpListener(IPAddress.Any, _serverConfig.Port);
         listener.Start();
 
-        _logger.LogInformation("BlueDeep server started at {Address}", listener.LocalEndpoint);
+        _logger.LogInformation("BlueDeep broker server started at {Address}", listener.LocalEndpoint);
 
         // Start Message processor (sending messages to subscribers)
         _ = Task.Run(async () => await _messageSenderService.MessageSenderStartAsync(), stoppingToken);
@@ -43,7 +43,8 @@ public class ServerService : BackgroundService
             while (true)
             {
                 var client = await listener.AcceptTcpClientAsync(stoppingToken);
-                _ = _clientService.StartRecieveDataAsync(client); // Client connection is processing in a separate thread
+                _ = _clientService
+                    .StartReceiveDataAsync(client); // Client connection is processing in a separate thread
             }
         }, stoppingToken);
     }

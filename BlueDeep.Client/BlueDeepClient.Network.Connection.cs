@@ -21,7 +21,7 @@ namespace BlueDeep.Client
             {
                 Console.WriteLine($"Ошибка инициализации подключения к серверу");
             }
-
+            if (!_tcpClient.Connected) await ReConnectAsync();
             _ = Task.Run(async () => await ReceiveMessagesAsync()); // Запуск фоновой задачи для чтения сообщений
         }
 
