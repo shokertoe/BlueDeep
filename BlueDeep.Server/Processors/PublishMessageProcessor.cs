@@ -2,28 +2,27 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using BlueDeep.Core.DataModels;
-using BlueDeep.Server.Broker;
-using BlueDeep.Server.Store;
+using BlueDeep.Server.Services;
 using Microsoft.Extensions.Logging;
 
 namespace BlueDeep.Server.Processors;
 
-public class PublishProcessor
+public class PublishMessageProcessor
 {
-    private readonly ILogger<SubscribeProcessor> _logger;
-    private readonly MessageBroker _messageBroker;
+    private readonly ILogger<SubscribeMessageProcessor> _logger;
+    private readonly MessageBrokerService _messageBrokerService;
 
-    public PublishProcessor(ILogger<SubscribeProcessor> logger,
-        MessageBroker broker)
+    public PublishMessageProcessor(ILogger<SubscribeMessageProcessor> logger,
+        MessageBrokerService brokerService)
     {
         _logger = logger;
-        _messageBroker = broker;
+        _messageBrokerService = brokerService;
     }
 
     public void ProcessMessage(MessagePublishModel publishData, TcpClient client)
     {
         // Добавление сообщения в очередь
-        _messageBroker.Enqueue(publishData);
+        _messageBrokerService.EnqueueMessage(publishData);
 
         _logger.LogInformation("Client IP:{@Address} Port: {Port} publish a message to topic '{topicName}'",
             (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString(),

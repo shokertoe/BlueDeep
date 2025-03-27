@@ -25,13 +25,6 @@ namespace BlueDeep.Client
                     break;
                 }
 
-                //Заглушка на всякий случай
-                if (bytesRead != 4)
-                {
-                    Console.WriteLine($"Socket received {bytesRead} bytes.Not proceeded");
-                    continue;
-                }
-
                 try
                 {
                     // Чтение длины сообщения

@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using BlueDeep.Client;
+﻿using BlueDeep.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BlueDeepExample
 {

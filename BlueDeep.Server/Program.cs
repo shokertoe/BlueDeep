@@ -1,11 +1,10 @@
 ﻿using BlueDeep.Server;
-using BlueDeep.Server.Broker;
+using BlueDeep.Server.Models;
 using BlueDeep.Server.Processors;
 using BlueDeep.Server.Services;
-using BlueDeep.Server.Store;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
@@ -25,11 +24,19 @@ Log.Logger = new LoggerConfiguration()
 builder.Logging.AddSerilog();
 
 //Services
-builder.Services.AddSingleton<MessageBroker>();
-builder.Services.AddSingleton<TopicSubscribersBag>();
-builder.Services.AddSingleton<SubscribeProcessor>();
-builder.Services.AddSingleton<PublishProcessor>();
+builder.Services.AddOptions<ServerConfig>()
+    .Bind(builder.Configuration.GetSection("Server"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<TopicService>();
+builder.Services.AddScoped<MessageBrokerService>();
+builder.Services.AddScoped<ClientService>();
+builder.Services.AddScoped<MessageSenderService>();
+builder.Services.AddScoped<SubscribeMessageProcessor>();
+builder.Services.AddScoped<PublishMessageProcessor>();
 builder.Services.AddHostedService<ServerService>();
+
 
 //Start server
 var host = builder.Build();

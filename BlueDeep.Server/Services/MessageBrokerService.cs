@@ -3,12 +3,12 @@ using BlueDeep.Core.DataModels;
 using BlueDeep.Server.Models;
 using Microsoft.Extensions.Logging;
 
-namespace BlueDeep.Server.Broker;
+namespace BlueDeep.Server.Services;
 
-public class MessageBroker
+public class MessageBrokerService
 {
-    private readonly ILogger<MessageBroker> _logger;
-    public MessageBroker(ILogger<MessageBroker> logger)
+    private readonly ILogger<MessageBrokerService> _logger;
+    public MessageBrokerService(ILogger<MessageBrokerService> logger)
     {
         _logger = logger;
     }
@@ -17,7 +17,7 @@ public class MessageBroker
     // Очередь сообщений с приоритетами
     private readonly ConcurrentDictionary<string, List<MessageBrokerModel>> _topics  = new ();
     
-    public void Enqueue(MessagePublishModel messageObj)
+    public void EnqueueMessage(MessagePublishModel messageObj)
     {
         var topicName = messageObj.TopicName;
         var priority = messageObj.Priority;
