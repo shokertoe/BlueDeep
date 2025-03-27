@@ -7,44 +7,60 @@ namespace BlueDeep.Server.Services;
 public class TopicService
 {
     private static ConcurrentDictionary<string, ConcurrentBag<TcpClient>?>? _topicSubscribers;
+    private static object? _topicLock;
     private readonly ILogger<TopicService> _logger;
     public TopicService(ILogger<TopicService> logger)
     {
         _logger = logger;
         _topicSubscribers ??= new ConcurrentDictionary<string, ConcurrentBag<TcpClient>?>();
+        _topicLock ??= new object();
     }
     
     public void RemoveClientFromAllTopics(TcpClient client)
     {
-        foreach (var topic in _topicSubscribers.Keys)
+        lock (_topicLock!)
         {
-            if (!_topicSubscribers.TryGetValue(topic, out var subscribers)) continue;
-
-            var newSubscribers = new ConcurrentBag<TcpClient>(subscribers.Where(s => s != client));
-            _topicSubscribers[topic] = newSubscribers;
+            foreach (var topic in _topicSubscribers.Keys)
+            {
+                if (!_topicSubscribers.TryGetValue(topic, out var subscribers)) continue;
+                var newSubscribers = new ConcurrentBag<TcpClient>(subscribers.Where(s => s != client));
+                _topicSubscribers[topic] = newSubscribers;
+            }
         }
-        
+
         _logger.LogDebug("Client {Client} was removed from all topics",client.Client.RemoteEndPoint);
     }
 
-    public IEnumerable<string> GetTopicsWithSubscribers()
+    public List<string> GetTopicsHasSubscribers()
     {
-        return _topicSubscribers.Where(x => !x.Value.IsEmpty).Select(x => x.Key);
+        lock (_topicLock!)
+        {
+            return _topicSubscribers!.Where(x => !x.Value.IsEmpty)
+                .Select(x => x.Key)
+                .ToList();
+        }
     }
 
     public bool TryGetSubscribers(string topic, out ConcurrentBag<TcpClient>? subscribers)
     {
-        return _topicSubscribers.TryGetValue(topic, out subscribers);
+        lock (_topicLock!)
+        {
+            return _topicSubscribers.TryGetValue(topic, out subscribers);
+        }
     }
 
     public void AddSubscriber(string topicName, TcpClient client)
     {
-        // Добавление клиента в подписчики топика
-        if (!_topicSubscribers.TryGetValue(topicName, out var subscribers) )
+        lock (_topicLock!)
         {
-            subscribers = [];
-            _topicSubscribers[topicName] = subscribers;
+            // Добавление клиента в подписчики топика
+            if (!_topicSubscribers!.TryGetValue(topicName, out var subscribers))
+            {
+                subscribers = [];
+                _topicSubscribers[topicName] = subscribers;
+            }
+
+            subscribers!.Add(client);
         }
-        subscribers.Add(client);
     }
 }

@@ -32,7 +32,7 @@ public class MessageSenderService
         {
             try
             {
-                foreach (var topic in _topicService.GetTopicsWithSubscribers())
+                foreach (var topic in _topicService.GetTopicsHasSubscribers())
                 {
                     //Get message from broker
                     var messageObject = _messageBrokerService.GetMessage(topic);
