@@ -39,15 +39,14 @@ namespace BlueDeep.Client
                     var messageObj = JsonSerializer.Deserialize<ServerMessage>(message) ??
                                      throw new NullReferenceException("Received message from BlueDeepServer is null");
 
-                    // Вызов обработчика, если он зарегистрирован для обработки топика
-                    //Запуск отдельной таски без ожидания
-                    if (_subscriptionHandlers.TryGetValue(messageObj.Topic, out var storedFunc))
+                    // Run subscriber's handler in separate thread
+                    if (_subscriptionHandlers.TryGetValue(messageObj.Topic, out var subscribeClient))
                     {
-                        Task.Run(async () =>
+                        _ = Task.Run(async () =>
                         {
                             try
                             {
-                                await storedFunc(messageObj.Data);
+                                await subscribeClient.Handler(messageObj.Data);
                                 await SendMessageAsync(new AckMessage(messageObj.Id, MessageStatus.Ok));
                             }
                             catch (Exception ex)

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlueDeep.Server.WebApp;
+namespace BlueDeep.Server.WebHost;
 
 public class WebStartup
 {

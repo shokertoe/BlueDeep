@@ -32,7 +32,7 @@ public class MessageSenderService
         {
             try
             {
-                foreach (var topic in _topicService.GetTopicsHasSubscribers())
+                foreach (var topic in _topicService.GetTopicsWithActiveSubscribers())
                 {
                     //Get message from broker
                     var messageObject = _messageBrokerService.GetMessage(topic);
@@ -42,7 +42,7 @@ public class MessageSenderService
                     var messageId = messageObject.Id;
 
                     var sentCounter = 0;
-                    if (_topicService.TryGetSubscribers(topic, out var subscribers) && subscribers?.Count > 0)
+                    if (TopicService.TryGetSubscribers(topic, out var subscribers) && subscribers?.Count > 0)
                     {
                         var data = Encoding.UTF8.GetBytes(
                             JsonSerializer.Serialize(new ServerMessage(topic, message, messageId)));
@@ -51,16 +51,16 @@ public class MessageSenderService
                         //Send message for each subscribers
                         foreach (var subscriber in subscribers)
                         {
-                            if (subscriber.Connected)
+                            if (subscriber.Client.Connected)
                             {
-                                var stream = subscriber.GetStream();
+                                var stream = subscriber.Client.GetStream();
                                 stream.Write(length, 0, 4); //Send message length
                                 stream.Write(data); //Send message
                                 sentCounter++;
                             }
                             else
                             {
-                                _topicService.RemoveClientFromAllTopics(subscriber);
+                                _topicService.RemoveClientFromAllTopics(subscriber.Client);
                             }
                         }
                     }
@@ -70,9 +70,9 @@ public class MessageSenderService
                         _messageBrokerService.DequeueMessage(topic, messageId);
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                Console.WriteLine("Неизвестная ошибка в потоке доставки сообщений");
+                _logger.LogCritical("Error in MessageSender thread {Exception}", ex);
                 throw;
             }
         }

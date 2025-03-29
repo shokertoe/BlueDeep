@@ -22,7 +22,7 @@ public class WebStatService
         
         foreach (var topicInfo in topicsInfo)
         {
-            if (_topicService.TryGetSubscribers(topicInfo.Name, out var subscribers) && subscribers is not null)
+            if (TopicService.TryGetSubscribers(topicInfo.Name, out var subscribers) && subscribers is not null)
                 topicInfo.SetSubscribers(subscribers);
             else 
                 topicInfo.SetSubscribers(null);
@@ -65,7 +65,7 @@ public class WebStatService
                 retStr.AppendLine($"<td style=\"text-align:center;\">{topicInfo.PriorityHighCount}</td>");
                 retStr.AppendLine($"<td style=\"text-align:center;\">{topicInfo.PriorityLowCount}</td>");
                 retStr.AppendLine($"<td style=\"text-align:center;\">{topicInfo.TotalCount}</td>");
-                retStr.AppendLine($"<td style=\"text-align:center;\">{topicInfo.GetSubscribers().Count}</td>");
+                retStr.AppendLine($"<td style=\"text-align:center;\">{topicInfo.GetSubscribers()?.Count ?? 0}</td>");
                 retStr.AppendLine("</tr style=\"text-align:center;\">");
             }
         }

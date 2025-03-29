@@ -8,7 +8,7 @@ namespace BlueDeep.Client
     public partial class BlueDeepClient : IDisposable
     {
         // Потокобезопасный словарь для хранения обработчиков подписок
-        private readonly ConcurrentDictionary<string, Func<string, Task>> _subscriptionHandlers = new();
+        private readonly ConcurrentDictionary<string, SubscribeClientModel> _subscriptionHandlers = new();
 
         public BlueDeepClient(string serverAddress, int serverPort)
         {
@@ -37,9 +37,10 @@ namespace BlueDeep.Client
         /// </summary>
         /// <param name="topic">Название топика</param>
         /// <param name="handler">Выполняемое действие</param>
+        /// <param name="maxHandlers">Concurrent handler number</param>
         /// <typeparam name="T">Тип сообщения</typeparam>
         /// <exception cref="Exception">Ошибка создания подписки на топик</exception>
-        public async Task SubscribeAsync<T>(string topic, Func<T, Task> handler) where T : class
+        public async Task SubscribeAsync<T>(string topic, Func<T, Task> handler, int maxHandlers = 1) where T : class
         {
             if (_subscriptionHandlers.TryGetValue(topic, out _))
             {
@@ -47,14 +48,21 @@ namespace BlueDeep.Client
             }
 
             // Register topic handler
-            _subscriptionHandlers[topic] = async Task (message) =>
+            _subscriptionHandlers[topic] = new SubscribeClientModel()
             {
-                var receivedMessage = JsonSerializer.Deserialize<T>(message) ??
-                                      throw new Exception("Received message was null");
-                await handler(receivedMessage);
+                Handler =
+                    async Task (message) =>
+
+                    {
+                        var receivedMessage = JsonSerializer.Deserialize<T>(message) ??
+                                              throw new Exception("Received message was null");
+                        await handler(receivedMessage);
+                    },
+                
+                MaxHandlers = maxHandlers
             };
 
-            await SendMessageAsync(new SubscribeMessage(topic));
+            await SendMessageAsync(new SubscribeMessage(topic, maxHandlers));
         }
 
         public void Dispose()

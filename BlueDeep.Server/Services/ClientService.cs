@@ -20,16 +20,19 @@ public class ClientService
     //Message processors
     private readonly SubscribeMessageProcessor _subscribeMessageProcessor;
     private readonly PublishMessageProcessor _publishMessageProcessor;
+    private readonly AckMessageProcessor _ackMessageProcessor;
     
     public ClientService(ILogger<ClientService> logger,
         TopicService topicService,
         SubscribeMessageProcessor subscribeMessageProcessor,
-        PublishMessageProcessor publishMessageProcessor)
+        PublishMessageProcessor publishMessageProcessor,
+        AckMessageProcessor ackMessageProcessor)
     {
         _logger = logger;
         _topicService = topicService;
         _subscribeMessageProcessor = subscribeMessageProcessor;
         _publishMessageProcessor = publishMessageProcessor;
+        _ackMessageProcessor = ackMessageProcessor;
     }
     
     /// <summary>
@@ -70,7 +73,7 @@ public class ClientService
             //remove client on disconnect or failure
             await client.Client.DisconnectAsync(true);
             _topicService.RemoveClientFromAllTopics(client);
-            _logger.LogInformation("Client disconnected {Client}", client.Client.RemoteEndPoint);
+            _logger.LogTrace("Client disconnected {Client}", client.Client.RemoteEndPoint);
         }
     }
     
@@ -81,11 +84,16 @@ public class ClientService
     /// <param name="client">Tcp client</param>
     private void ParseClientMessage(BaseClientMessage? messageObj, TcpClient client)
     {
-        switch (messageObj?.MessageType)
+        if (messageObj?.MessageType is null || messageObj.MessageData is null)
+        {
+            _logger.LogWarning("Null data message was received from {Client}",client.Client.RemoteEndPoint);
+            return;
+        }
+        switch (messageObj.MessageType)
         {
             case ClientMessageType.Subscribe:
             {
-                var subscribeData = JsonSerializer.Deserialize<MessageSubscribeModel>(messageObj.MessageData);
+                var subscribeData = JsonSerializer.Deserialize<SubscribeData>(messageObj.MessageData);
                 if (subscribeData is null)
                 {
                     _logger.LogError("Invalid Subscribe data from {Client}", client.Client.RemoteEndPoint);
@@ -96,7 +104,7 @@ public class ClientService
             }
 
             case ClientMessageType.Publish:
-                var publishData = JsonSerializer.Deserialize<MessagePublishModel>(messageObj.MessageData);
+                var publishData = JsonSerializer.Deserialize<PublishData>(messageObj.MessageData);
                 if (publishData is null)
                 {
                     _logger.LogError("Invalid Publish data  from {Client} was received", client.Client.RemoteEndPoint);
@@ -106,9 +114,15 @@ public class ClientService
                 break;
 
             case ClientMessageType.Ack:
-                _logger.LogWarning("Unknown type {Type}  was received.",messageObj?.MessageType);
+                var ackData = JsonSerializer.Deserialize<AckData>(messageObj.MessageData);
+                if (ackData is null)
+                {
+                    _logger.LogError("Invalid Ack data  from {Client} was received", client.Client.RemoteEndPoint);
+                    break;
+                }
+                _ackMessageProcessor.ProcessMessage(ackData, client);
                 break;
-                    
+            
             default:
                 _logger.LogWarning("Unknown message type was received from {Client}",client.Client.RemoteEndPoint);
                 break;

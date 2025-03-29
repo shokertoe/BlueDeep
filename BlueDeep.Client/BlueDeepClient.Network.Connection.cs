@@ -45,7 +45,7 @@ namespace BlueDeep.Client
                     //Перерегистрируем подписчиков на сервере
                     foreach (var subscriptionHandler in _subscriptionHandlers)
                     {
-                        await SendMessageAsync(new SubscribeMessage(subscriptionHandler.Key));
+                        await SendMessageAsync(new SubscribeMessage(subscriptionHandler.Key, subscriptionHandler.Value.MaxHandlers));
                     }
 
                     return;

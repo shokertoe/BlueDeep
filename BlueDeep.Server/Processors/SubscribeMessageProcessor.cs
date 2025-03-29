@@ -26,10 +26,10 @@ public class SubscribeMessageProcessor
     /// </summary>
     /// <param name="subscribeData">Subscribe model</param>
     /// <param name="client">Tcp client</param>
-    public void ProcessMessage(MessageSubscribeModel subscribeData, TcpClient client)
+    public void ProcessMessage(SubscribeData subscribeData, TcpClient client)
     {
-        _topicService.AddSubscriber(subscribeData.TopicName, client);
-        _logger.LogInformation("Client IP:{@Address} Port: {Port} subscribed to topic '{Topic}'",
+        _topicService.AddSubscriber(subscribeData.TopicName, client, subscribeData.MaxHandlers);
+        _logger.LogTrace("Client IP:{@Address} Port: {Port} subscribed to topic '{Topic}'",
             (client.Client.RemoteEndPoint as IPEndPoint)?.Address.ToString(),
             (client.Client.RemoteEndPoint as IPEndPoint)?.Port
             , subscribeData.TopicName);

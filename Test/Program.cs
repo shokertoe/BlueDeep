@@ -24,7 +24,7 @@ namespace BlueDeepExample
                 while (true)
                 {
                     await client.PublishAsync("testTopic1", new TestMessage(DateTime.UtcNow, i++.ToString()), 0);
-                    Task.Delay(100).Wait();
+                    //Task.Delay(5).Wait();
                 }
             });
             
@@ -34,7 +34,27 @@ namespace BlueDeepExample
                 while (true)
                 {
                     await client.PublishAsync("testTopic2", new TestMessage(DateTime.UtcNow, i++.ToString()),priority: MessagePriority.High);
-                    Task.Delay(10).Wait();
+                    //Task.Delay(5).Wait();
+                }
+            });
+            
+            _=Task.Run(async () =>
+            {
+                var i = 500000;
+                while (true)
+                {
+                    await client.PublishAsync("testTopic3", new TestMessage(DateTime.UtcNow, i++.ToString()),priority: MessagePriority.High);
+                    //Task.Delay(5).Wait();
+                }
+            });
+            
+            _=Task.Run(async () =>
+            {
+                var i = 500000;
+                while (true)
+                {
+                    await client.PublishAsync("testTopic2", new TestMessage(DateTime.UtcNow, i++.ToString()),priority: MessagePriority.High);
+                    //Task.Delay(5).Wait();
                 }
             });
 
@@ -45,12 +65,11 @@ namespace BlueDeepExample
             // }
         }
         
-        private static Task TestFuncAsync(TestMessage i)
+        private static async Task TestFuncAsync(TestMessage i)
         {
-            Console.WriteLine($"Start processing 'topic1' dt={i.Date}\tval={i.Message}");
-            Task.Delay(5000).Wait();
-            Console.WriteLine($"End processing 'topic1' dt={i.Date}\tval={i.Message}");
-            return Task.CompletedTask;
+            //Console.WriteLine($"Start processing 'topic1' dt={i.Date}\tval={i.Message}");
+            await Task.Delay(1000);
+            //Console.WriteLine($"End processing 'topic1' dt={i.Date}\tval={i.Message}");
         }
     }
     public record TestMessage(DateTime Date, string Message);

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using System.Text;
 using BlueDeep.Core.DataModels;
 using BlueDeep.Core.Enums;
+using BlueDeep.Server.Exceptions;
 using BlueDeep.Server.Models;
 using Microsoft.Extensions.Logging;
 
@@ -23,20 +23,22 @@ public class MessageBrokerService
         _brokerLock ??= new object();
     }
     
-    public void EnqueueMessage(MessagePublishModel messageObj)
+    public void EnqueueMessage(PublishData obj)
     {
-        var topicName = messageObj.TopicName;
-        var priority = messageObj.Priority;
-        var data = messageObj.Data;
+        var topicName = obj.TopicName;
+        var priority = obj.Priority;
+        var data = obj.Data;
         
         //Блокируем поток работы с очередями
-        lock (_brokerLock)
+        lock (_brokerLock ?? throw new LockNullReferenceException())
         {
+            if (_messageList is null) throw new MessagesNullReferenceException();
+            
             if (!_messageList.ContainsKey(topicName)) 
                 _messageList.TryAdd(topicName, []);
         
             _messageList[topicName].Add( new MessageBrokerModel(data, priority));
-            _logger.LogDebug("Enqueued message. Data: {@Data}", messageObj);
+            _logger.LogDebug("Enqueued message. Data: {@Data}", obj);
         }
     }
     
@@ -47,8 +49,10 @@ public class MessageBrokerService
     /// <returns>Модель с сообщением</returns>
     public MessageBrokerModel? GetMessage(string topic)
     {
-        lock (_brokerLock)
+        lock (_brokerLock ?? throw new LockNullReferenceException())
         {
+            if (_messageList is null) throw new MessagesNullReferenceException();
+            
             if (!_messageList.TryGetValue(topic, out var messagesBag)) return null;
             if (messagesBag.Count == 0 ) return null;
         
@@ -68,8 +72,10 @@ public class MessageBrokerService
     public void DequeueMessage(string topic, Guid messageId)
     {
         //Блокируем поток работы с очередями
-        lock (_brokerLock)
+        lock (_brokerLock ?? throw new LockNullReferenceException())
         {
+            if (_messageList is null) throw new MessagesNullReferenceException();
+            
             if (!_messageList.TryGetValue(topic, out var messagesBag))
                 throw new KeyNotFoundException("DequeueFailed topic not found");
             var message = messagesBag.FirstOrDefault(x => x.Id == messageId) ?? throw new KeyNotFoundException("DequeueFailed messageId not found");
@@ -85,9 +91,9 @@ public class MessageBrokerService
     /// <returns></returns>
     public IEnumerable<string> GetTopics()
     {
-        lock (_brokerLock)
+        lock (_brokerLock ?? throw new LockNullReferenceException())
         {
-            return _messageList?.Keys?.Select(x=>x.ToString()) ?? new  List<string>();
+            return _messageList?.Keys.Select(x=>x.ToString()) ?? throw new MessagesNullReferenceException();
         }
     }
     
@@ -97,14 +103,14 @@ public class MessageBrokerService
     /// <returns></returns>
     public List<TopicInfo> GetTopicsInfo()
     {
-        lock (_brokerLock)
+        lock (_brokerLock ?? throw new LockNullReferenceException())
         {
             return _messageList?.Select(topic => new TopicInfo()
             {
                 Name = topic.Key,
                 PriorityHighCount = topic.Value.Count(x => x.Priority == MessagePriority.High),
                 PriorityLowCount =  topic.Value.Count(x => x.Priority == MessagePriority.Low)
-            }) .ToList()?? [];
+            }) .ToList() ?? throw new MessagesNullReferenceException();
         }
     }
 }
